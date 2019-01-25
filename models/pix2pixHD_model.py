@@ -112,7 +112,10 @@ class Pix2PixHDModel(BaseModel):
 
     def encode_input(self, label_map, inst_map=None, real_image=None, feat_map=None, infer=False):             
         if self.opt.label_nc == 0:
-            input_label = label_map.data.cuda()
+            if torch.cuda.is_available():
+                input_label = label_map.data.cuda()
+            else:
+                input_label = label_map.data
         else:
             # create one-hot vector for label map 
             size = label_map.size()
@@ -124,7 +127,10 @@ class Pix2PixHDModel(BaseModel):
 
         # get edges from instance map
         if not self.opt.no_instance:
-            inst_map = inst_map.data.cuda()
+            if torch.cuda.is_available():
+                inst_map = inst_map.data.cuda()
+            else:
+                inst_map = inst_map.data
             edge_map = self.get_edges(inst_map)
             input_label = torch.cat((input_label, edge_map), dim=1)         
         input_label = Variable(input_label, volatile=infer)
