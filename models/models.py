@@ -3,7 +3,7 @@
 import torch
 
 def create_model(opt):
-    if opt.model == 'pix2pixHD':
+    if opt.dic['model'] == 'pix2pixHD':
         from .pix2pixHD_model import Pix2PixHDModel, InferenceModel
         if opt.isTrain:
             model = Pix2PixHDModel()
@@ -13,10 +13,10 @@ def create_model(opt):
     	from .ui_model import UIModel
     	model = UIModel()
     model.initialize(opt)
-    if opt.verbose:
+    if opt.dic['verbose']:
         print("model [%s] was created" % (model.name()))
 
-    if opt.isTrain and len(opt.gpu_ids):
-        model = torch.nn.DataParallel(model, device_ids=opt.gpu_ids)
+    if opt.isTrain and len(opt.dic['gpu_ids']):
+        model = torch.nn.DataParallel(model, device_ids=opt.dic['gpu_ids'])
 
     return model

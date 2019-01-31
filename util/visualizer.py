@@ -15,22 +15,22 @@ except ImportError:
 class Visualizer():
     def __init__(self, opt):
         # self.opt = opt
-        self.tf_log = opt.tf_log
-        self.use_html = opt.isTrain and not opt.no_html
-        self.win_size = opt.display_winsize
-        self.name = opt.name
+        self.tf_log = opt.dic['tf_log']
+        self.use_html = opt.isTrain and not opt.dic['no_html']
+        self.win_size = opt.dic['display_winsize']
+        self.name = opt.dic['name']
         if self.tf_log:
             import tensorflow as tf
             self.tf = tf
-            self.log_dir = os.path.join(opt.checkpoints_dir, opt.name, 'logs')
+            self.log_dir = os.path.join(opt.dic['checkpoints_dir'], opt.dic['name'], 'logs')
             self.writer = tf.summary.FileWriter(self.log_dir)
 
         if self.use_html:
-            self.web_dir = os.path.join(opt.checkpoints_dir, opt.name, 'web')
+            self.web_dir = os.path.join(opt.dic['checkpoints_dir'], opt.dic['name'], 'web')
             self.img_dir = os.path.join(self.web_dir, 'images')
             print('create web directory %s...' % self.web_dir)
             util.mkdirs([self.web_dir, self.img_dir])
-        self.log_name = os.path.join(opt.checkpoints_dir, opt.name, 'loss_log.txt')
+        self.log_name = os.path.join(opt.dic['checkpoints_dir'], opt.dic['name'], 'loss_log.txt')
         with open(self.log_name, "a") as log_file:
             now = time.strftime("%c")
             log_file.write('================ Training Loss (%s) ================\n' % now)
