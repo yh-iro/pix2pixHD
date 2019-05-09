@@ -209,9 +209,12 @@ class GlobalGenerator(nn.Module):
         model += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0), nn.Tanh()]        
         self.model = nn.Sequential(*model)
             
-    def forward(self, input):
-        return self.model(input)             
-        
+    def forward(self, input, noise=None):
+        if noise is not None:
+            return self.model(input) + noise
+        else:
+            return self.model(input)
+
 # Define a resnet block
 class ResnetBlock(nn.Module):
     def __init__(self, dim, padding_type, norm_layer, activation=nn.ReLU(True), use_dropout=False):
