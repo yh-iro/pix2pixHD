@@ -19,6 +19,10 @@ class Pix2PixHDModel(BaseModel):
         return loss_filter
     
     def initialize(self, opt):
+        self.noise_for_fake_img = Variable(torch.zeros(opt.dic['batchSize'], opt.dic['input_nc'], opt.dic['loadSize'], opt.dic['loadSize']).cuda())
+        self.noise_for_real_img = Variable(torch.zeros(opt.dic['batchSize'], opt.dic['input_nc'], opt.dic['loadSize'], opt.dic['loadSize']).cuda())
+        self.std_max = opt.dic['std_max']
+
         BaseModel.initialize(self, opt)
         if opt.dic['resize_or_crop'] != 'none' or not opt.isTrain: # when training at full res this causes OOM
             torch.backends.cudnn.benchmark = True
@@ -160,7 +164,9 @@ class Pix2PixHDModel(BaseModel):
 
     def forward(self, label, inst, image, feat, infer=False):
         # Encode Inputs
-        input_label, inst_map, real_image, feat_map = self.encode_input(label, inst, image, feat)  
+        input_label, inst_map, real_image, feat_map = self.encode_input(label, inst, image, feat)
+        self.noise_for_real_img.data.normal_(0, std=np.random.uniform(high=self.std_max))
+        real_image += self.noise_for_real_img
 
         # Fake Generation
         if self.use_features:
@@ -169,7 +175,8 @@ class Pix2PixHDModel(BaseModel):
             input_concat = torch.cat((input_label, feat_map), dim=1)                        
         else:
             input_concat = input_label
-        fake_image = self.netG.forward(input_concat)
+        self.noise_for_fake_img.data.normal_(0, std=np.random.uniform(high=self.std_max))
+        fake_image = self.netG.forward(input_concat, noise=self.noise_for_fake_img)
 
         # Fake Detection and Loss
         pred_fake_pool = self.discriminate(input_label, fake_image, use_pool=True)
