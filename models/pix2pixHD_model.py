@@ -165,8 +165,8 @@ class Pix2PixHDModel(BaseModel):
     def forward(self, label, inst, image, feat, infer=False):
         # Encode Inputs
         input_label, inst_map, real_image, feat_map = self.encode_input(label, inst, image, feat)
-        self.noise_for_real_img.data.normal_(0, std=np.random.uniform(high=self.std_max))
-        real_image += self.noise_for_real_img
+        # self.noise_for_real_img.data.normal_(0, std=np.random.uniform(high=self.std_max))
+        # real_image += self.noise_for_real_img
 
         # Fake Generation
         if self.use_features:
@@ -175,8 +175,9 @@ class Pix2PixHDModel(BaseModel):
             input_concat = torch.cat((input_label, feat_map), dim=1)                        
         else:
             input_concat = input_label
-        self.noise_for_fake_img.data.normal_(0, std=np.random.uniform(high=self.std_max))
-        fake_image = self.netG.forward(input_concat, noise=self.noise_for_fake_img)
+        # self.noise_for_fake_img.data.normal_(0, std=np.random.uniform(high=self.std_max))
+        # fake_image = self.netG.forward(input_concat, noise=self.noise_for_fake_img)
+        fake_image = self.netG.forward(input_concat, noise=None)
 
         # Fake Detection and Loss
         pred_fake_pool = self.discriminate(input_label, fake_image, use_pool=True)
