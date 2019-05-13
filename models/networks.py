@@ -45,9 +45,9 @@ def define_G(input_nc, output_nc, ngf, netG, n_downsample_global=3, n_blocks_glo
     netG.apply(weights_init)
     return netG
 
-def define_D(input_nc, ndf, n_layers_D, norm='instance', use_sigmoid=False, num_D=1, getIntermFeat=False, gpu_ids=[]):        
+def define_D(input_nc, ndf, n_layers_D, norm='instance', use_sigmoid=False, num_D=1, getIntermFeat=False, gpu_ids=[], std_max=0):
     norm_layer = get_norm_layer(norm_type=norm)   
-    netD = MultiscaleDiscriminator(input_nc, ndf, n_layers_D, norm_layer, use_sigmoid, num_D, getIntermFeat)   
+    netD = MultiscaleDiscriminator(input_nc, ndf, n_layers_D, norm_layer, use_sigmoid, num_D, getIntermFeat, std_max)
     print(netD)
     if gpu_ids[0] >= 0:
         assert(torch.cuda.is_available())
@@ -209,11 +209,8 @@ class GlobalGenerator(nn.Module):
         model += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0), nn.Tanh()]        
         self.model = nn.Sequential(*model)
             
-    def forward(self, input, noise=None):
-        if noise is not None:
-            return self.model(input) + noise
-        else:
-            return self.model(input)
+    def forward(self, input):
+        return self.model(input)
 
 # Define a resnet block
 class ResnetBlock(nn.Module):
@@ -296,11 +293,12 @@ class Encoder(nn.Module):
 
 class MultiscaleDiscriminator(nn.Module):
     def __init__(self, input_nc, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d, 
-                 use_sigmoid=False, num_D=3, getIntermFeat=False):
+                 use_sigmoid=False, num_D=3, getIntermFeat=False, std_max=0):
         super(MultiscaleDiscriminator, self).__init__()
         self.num_D = num_D
         self.n_layers = n_layers
         self.getIntermFeat = getIntermFeat
+        self.std_max = std_max
      
         for i in range(num_D):
             netD = NLayerDiscriminator(input_nc, ndf, n_layers, norm_layer, use_sigmoid, getIntermFeat)
@@ -313,6 +311,7 @@ class MultiscaleDiscriminator(nn.Module):
         self.downsample = nn.AvgPool2d(3, stride=2, padding=[1, 1], count_include_pad=False)
 
     def singleD_forward(self, model, input):
+
         if self.getIntermFeat:
             result = [input]
             for i in range(len(model)):
@@ -321,10 +320,18 @@ class MultiscaleDiscriminator(nn.Module):
         else:
             return [model(input)]
 
-    def forward(self, input):        
+    def forward(self, input, noise=None):
+
+        if noise is not None:
+            if self.std_max == 0:
+                raise Exception()
+            noise.data.normal_(0, std=np.random.uniform(high=self.std_max))
+            input_downsampled = input + noise
+        else:
+            input_downsampled = input
+
         num_D = self.num_D
         result = []
-        input_downsampled = input
         for i in range(num_D):
             if self.getIntermFeat:
                 model = [getattr(self, 'scale'+str(num_D-1-i)+'_layer'+str(j)) for j in range(self.n_layers+2)]
@@ -378,6 +385,7 @@ class NLayerDiscriminator(nn.Module):
             self.model = nn.Sequential(*sequence_stream)
 
     def forward(self, input):
+
         if self.getIntermFeat:
             res = [input]
             for n in range(self.n_layers+2):

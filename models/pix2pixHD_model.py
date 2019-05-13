@@ -19,8 +19,8 @@ class Pix2PixHDModel(BaseModel):
         return loss_filter
     
     def initialize(self, opt):
-        self.noise_for_fake_img = Variable(torch.zeros(opt.dic['batchSize'], opt.dic['input_nc'], opt.dic['loadSize'], opt.dic['loadSize']).cuda())
-        self.noise_for_real_img = Variable(torch.zeros(opt.dic['batchSize'], opt.dic['input_nc'], opt.dic['loadSize'], opt.dic['loadSize']).cuda())
+        self.noise = Variable(
+            torch.zeros(opt.dic['batchSize'], opt.dic['input_nc']*2, opt.dic['loadSize'], opt.dic['loadSize']).cuda())
         self.std_max = opt.dic['std_max']
 
         BaseModel.initialize(self, opt)
@@ -49,7 +49,7 @@ class Pix2PixHDModel(BaseModel):
             if not opt.dic['no_instance']:
                 netD_input_nc += 1
             self.netD = networks.define_D(netD_input_nc, opt.dic['ndf'], opt.dic['n_layers_D'], opt.dic['norm'], use_sigmoid,
-                                          opt.dic['num_D'], not opt.dic['no_ganFeat_loss'], gpu_ids=self.gpu_ids)
+                                          opt.dic['num_D'], not opt.dic['no_ganFeat_loss'], gpu_ids=self.gpu_ids, std_max=opt.dic['std_max'])
 
         ### Encoder network
         if self.gen_features:          
@@ -154,13 +154,13 @@ class Pix2PixHDModel(BaseModel):
 
         return input_label, inst_map, real_image, feat_map
 
-    def discriminate(self, input_label, test_image, use_pool=False):
+    def discriminate(self, input_label, test_image, use_pool=False, noise=None):
         input_concat = torch.cat((input_label, test_image.detach()), dim=1)
         if use_pool:            
             fake_query = self.fake_pool.query(input_concat)
-            return self.netD.forward(fake_query)
+            return self.netD.forward(fake_query, noise)
         else:
-            return self.netD.forward(input_concat)
+            return self.netD.forward(input_concat, noise)
 
     def forward(self, label, inst, image, feat, infer=False):
         # Encode Inputs
@@ -177,18 +177,18 @@ class Pix2PixHDModel(BaseModel):
             input_concat = input_label
         # self.noise_for_fake_img.data.normal_(0, std=np.random.uniform(high=self.std_max))
         # fake_image = self.netG.forward(input_concat, noise=self.noise_for_fake_img)
-        fake_image = self.netG.forward(input_concat, noise=None)
+        fake_image = self.netG.forward(input_concat)
 
         # Fake Detection and Loss
-        pred_fake_pool = self.discriminate(input_label, fake_image, use_pool=True)
+        pred_fake_pool = self.discriminate(input_label, fake_image, use_pool=True, noise=self.noise)
         loss_D_fake = self.criterionGAN(pred_fake_pool, False)        
 
         # Real Detection and Loss        
-        pred_real = self.discriminate(input_label, real_image)
+        pred_real = self.discriminate(input_label, real_image, noise=self.noise)
         loss_D_real = self.criterionGAN(pred_real, True)
 
         # GAN loss (Fake Passability Loss)        
-        pred_fake = self.netD.forward(torch.cat((input_label, fake_image), dim=1))        
+        pred_fake = self.netD.forward(torch.cat((input_label, fake_image), dim=1), noise=self.noise)
         loss_G_GAN = self.criterionGAN(pred_fake, True)               
         
         # GAN feature matching loss
