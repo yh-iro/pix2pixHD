@@ -20,7 +20,7 @@ class Pix2PixHDModel(BaseModel):
     
     def initialize(self, opt):
         self.noise = Variable(
-            torch.zeros(opt.dic['batchSize'], opt.dic['input_nc']*2, opt.dic['loadSize'], opt.dic['loadSize']).cuda())
+            torch.zeros(opt.dic['batchSize'], opt.dic['input_nc']+opt.dic['output_nc'], opt.dic['loadSize'], opt.dic['loadSize']).cuda())
         self.std_max = opt.dic['std_max']
 
         BaseModel.initialize(self, opt)

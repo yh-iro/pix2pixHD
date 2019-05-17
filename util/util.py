@@ -23,6 +23,20 @@ def tensor2im(image_tensor, imtype=np.uint8, normalize=True):
         image_numpy = image_numpy[:,:,0]
     return image_numpy.astype(imtype)
 
+def tensor2mask(image_tensor, imtype=np.uint8, normalize=True):
+    if isinstance(image_tensor, list):
+        image_numpy = []
+        for i in range(len(image_tensor)):
+            image_numpy.append(tensor2im(image_tensor[i], imtype, normalize))
+        return image_numpy
+    image_numpy = image_tensor.cpu().float().numpy()
+    if normalize:
+        image_numpy = (image_numpy + 1) / 2.0 * 255.0
+    else:
+        image_numpy = image_numpy * 255.0
+    image_numpy = np.clip(image_numpy, 0, 255)
+    return image_numpy.astype(imtype)
+
 # Converts a one-hot tensor into a colorful label map
 def tensor2label(label_tensor, n_label, imtype=np.uint8):
     if n_label == 0:
