@@ -19,6 +19,7 @@ class Pix2PixHDModel(BaseModel):
         return loss_filter
     
     def initialize(self, opt):
+        BaseModel.initialize(self, opt)
         self.noise = Variable(
             torch.zeros(opt.dic['batchSize'], opt.dic['input_nc']+opt.dic['output_nc'], opt.dic['loadSize'], opt.dic['loadSize']))
         if self.gpu_ids[0] >= 0:
@@ -26,7 +27,6 @@ class Pix2PixHDModel(BaseModel):
             self.noise = self.noise.cuda(self.gpu_ids[0])
         self.std_max = opt.dic['std_max']
 
-        BaseModel.initialize(self, opt)
         if opt.dic['resize_or_crop'] != 'none' or not opt.isTrain: # when training at full res this causes OOM
             torch.backends.cudnn.benchmark = True
         self.isTrain = opt.isTrain
